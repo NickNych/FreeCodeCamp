@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Змійка</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+
+    #game-board {
+      border: 1px solid black;
+      background-color: #f0f0f0;
+      display: grid;
+      grid-template-columns: repeat(var(--cols), 20px);
+      grid-template-rows: repeat(var(--rows), 20px);
+    }
+
+    .cell {
+      width: 20px;
+      height: 20px;
+      border: 1px solid #ccc;
+    }
+
+    .snake {
+      background-color: green;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .snake-head {
+      width: 0;
+      height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 20px solid green;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .food {
+      background-color: red;
+    }
+
+    #start-button {
+      margin-top: 20px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <label for="rows">Виберіть кількість рядків:</label>
+  <input type="number" id="rows" value="15">
+  <label for="cols">Виберіть кількість колонок:</label>
+  <input type="number" id="cols" value="15">
+  <label for="speed">Виберіть швидкість:</label>
+  <select id="speed">
+    <option value="200">Дуже повільно</option>
+    <option value="100">Повільно</option>
+    <option value="50" selected>Середньо</option>
+    <option value="20">Швидко</option>
+  </select>
+  <label for="walls">Змійка проходить скрізь стіни:</label>
+  <input type="checkbox" id="walls">
+  <button id="start-button">Почати гру (Enter)</button>
+  <div id="game-board"></div>
+  <script>
+    const gameBoard = document.getElementById('game-board');
+    const startButton = document.getElementById('start-button');
+    const rowsInput = document.getElementById('rows');
+    const colsInput = document.getElementById('cols');
+    const speedSelect = document.getElementById('speed');
+    const wallsCheckbox = document.getElementById('walls');
+    const tileSize = 20;
+
+    let snake = [];
+    let food = generateFood();
+    let walls = false;
+
+    let dx = 1;
+    let dy = 0;
+    let gameInterval;
+
+    function generateFood() {
+      const occupiedCells = [...snake, food];
+      let newFood;
+
+      do {
+        newFood = {
+          x: Math.floor(Math.random() * parseInt(colsInput.value)),
+          y: Math.floor(Math.random() * parseInt(rowsInput.value))
+        };
+      } while (occupiedCells.some(cell => cell.x === newFood.x && cell.y === newFood.y));
+
+      return newFood;
+    }
+
+    function update() {
+      const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+      snake.unshift(head);
+
+      if (head.x === food.x && head.y === food.y) {
+        food = generateFood();
+      } else {
+        snake.pop();
+      }
+
+      if (!walls) {
+        if (head.x < 0) head.x = parseInt(colsInput.value) - 1;
+        if (head.x >= parseInt(colsInput.value)) head.x = 0;
+        if (head.y < 0) head.y = parseInt(rowsInput.value) - 1;
+        if (head.y >= parseInt(rowsInput.value)) head.y = 0;
+      }
+    }
+
+    function draw() {
+      gameBoard.innerHTML = '';
+      gameBoard.style.setProperty('--rows', rowsInput.value);
+      gameBoard.style.setProperty('--cols', colsInput.value);
+
+      for (let y = 0; y < parseInt(rowsInput.value); y++) {
+        for (let x = 0; x < parseInt(colsInput.value); x++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+
+          const isSnakeSegment = snake.some(segment => segment.x === x && segment.y === y);
+          if (isSnakeSegment) {
+            if (x === snake[0].x && y === snake[0].y) {
+              cell.classList.add('snake-head');
+              if (dx === -1) {
+                cell.style.transform = 'rotate(180deg)';
+              } else if (dx === 1) {
+                cell.style.transform = 'rotate(0deg)';
+              } else if (dy === -1) {
+                cell.style.transform = 'rotate(270deg)';
+              } else if (dy === 1) {
+                cell.style.transform = 'rotate(90deg)';
+              }
+            } else {
+              cell.classList.add('snake');
+            }
+          }
+
+          if (food.x === x && food.y === y) {
+            cell.classList.add('food');
+          }
+          gameBoard.appendChild(cell);
+        }
+      }
+    }
+
+    function changeDirection(event) {
+      const keyPressed = event.keyCode;
+      const goingUp = dy === -1;
+      const goingDown = dy === 1;
+      const goingLeft = dx === -1;
+      const goingRight = dx === 1;
+
+      if (keyPressed === 37 && !goingRight) {
+        dx = -1;
+        dy = 0;
+      }
+      if (keyPressed === 38 && !goingDown) {
+        dx = 0;
+        dy = -1;
+      }
+      if (keyPressed === 39 && !goingLeft) {
+        dx = 1;
+        dy = 0;
+      }
+      if (keyPressed === 40 && !goingUp) {
+        dx = 0;
+        dy = 1;
+      }
+    }
+
+    function checkCollision() {
+      const head = snake[0];
+      for (let i = 1; i < snake.length; i++) {
+        if (head.x === snake[i].x && head.y === snake[i].y) {
+          clearInterval(gameInterval);
+          alert('Гра завершена. Змійка вдарила себе.');
+          break;
+        }
+      }
+    }
+
+    function startGame() {
+      snake = [{ x: 2, y: 2 }];
+      food = generateFood();
+      dx = 1;
+      dy = 0;
+      walls = wallsCheckbox.checked;
+      clearInterval(gameInterval);
+
+      const selectedSpeed = parseInt(speedSelect.value);
+      gameInterval = setInterval(() => {
+        update();
+        checkCollision();
+        draw();
+      }, selectedSpeed);
+    }
+
+    startButton.addEventListener('click', startGame);
+    document.addEventListener('keydown', changeDirection);
+    rowsInput.addEventListener('input', draw);
+    colsInput.addEventListener('input', draw);
+    wallsCheckbox.addEventListener('change', draw);
+  </script>
+</body>
+</html>
